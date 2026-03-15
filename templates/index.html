@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Caption Generator</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        .gallery { margin-top: 30px; }
+        img { max-width: 400px; border-radius: 10px; box-shadow: 0px 4px 8px rgba(0,0,0,0.2); }
+        .caption { font-size: 1.2em; color: #555; margin-top: 15px; }
+        .upload-btn { padding: 10px 20px; font-size: 1em; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>Image Caption Generator</h2>
+    
+    <input type="file" id="imageInput" accept="image/*">
+    <button class="upload-btn" onclick="uploadImage()">Upload & Caption</button>
+
+    <div class="gallery" id="gallery" style="display: none;">
+        <img id="displayImage" src="" alt="Uploaded Image">
+        <p class="caption"><strong>Generated Caption:</strong> <span id="captionText">Loading...</span></p>
+    </div>
+
+    <script>
+        function uploadImage() {
+            let fileInput = document.getElementById('imageInput');
+            if (fileInput.files.length === 0) {
+                alert("Please select an image first.");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            document.getElementById('gallery').style.display = 'block';
+            document.getElementById('captionText').innerText = "Loading caption...";
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.error) {
+                    document.getElementById('captionText').innerText = "Error: " + data.error;
+                } else {
+                    document.getElementById('displayImage').src = data.image_url;
+                    document.getElementById('captionText').innerText = data.caption;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+
+</body>
+</html>
