@@ -4,39 +4,189 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Caption Generator</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        .gallery { margin-top: 30px; }
-        img { max-width: 400px; border-radius: 10px; box-shadow: 0px 4px 8px rgba(0,0,0,0.2); }
-        .caption { font-size: 1.2em; color: #555; margin-top: 15px; }
-        .upload-btn { padding: 10px 20px; font-size: 1em; cursor: pointer; }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#000000',
+                        brandHover: '#333333'
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
+<body class="bg-white min-h-screen text-gray-900 font-sans">
+    <div class="max-w-3xl mx-auto pt-16 px-4 pb-12">
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-gray-900 mb-3 tracking-tight">
+                AI Image Captioning
+            </h1>
+            <p class="text-gray-500 text-lg">Upload an image and let AI describe it for you.</p>
+        </div>
 
-    <h2>Image Caption Generator</h2>
-    
-    <input type="file" id="imageInput" accept="image/*">
-    <button class="upload-btn" onclick="uploadImage()">Upload & Caption</button>
+        <!-- Main Card -->
+        <div class="bg-white p-6 md:p-10 transition-all border border-gray-200">
+            
+            <!-- Upload Area -->
+            <div id="uploadContainer" class="relative border border-dashed border-gray-300 p-12 text-center hover:bg-gray-50 hover:border-gray-900 transition-colors cursor-pointer group">
+                <input type="file" id="imageInput" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="previewImage(event)">
+                <div class="text-gray-400 mb-4 group-hover:text-gray-900 transition-colors">
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-800 mb-1">Click or drag image to upload</h3>
+                <p class="text-sm text-gray-500">Supports JPG, PNG, WEBP</p>
+            </div>
 
-    <div class="gallery" id="gallery" style="display: none;">
-        <img id="displayImage" src="" alt="Uploaded Image">
-        <p class="caption"><strong>Generated Caption:</strong> <span id="captionText">Loading...</span></p>
+            <!-- Preview & Action -->
+            <div id="previewContainer" class="hidden mt-2 text-center flex flex-col items-center">
+                <div class="relative group w-full mb-8 border border-gray-200 p-2 bg-gray-50">
+                    <img id="displayImage" src="" alt="Preview" class="max-h-[450px] mx-auto object-contain bg-white">
+                    <button onclick="resetUpload()" class="absolute top-4 right-4 bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 p-2 shadow-sm transition-colors">
+                        <i class="fa-solid fa-xmark w-4 h-4 flex items-center justify-center"></i>
+                    </button>
+                </div>
+                
+                <button id="uploadBtn" onclick="uploadImage()" class="bg-black text-white font-medium py-3 px-8 hover:bg-gray-800 transition-colors flex items-center gap-2 text-base w-full md:w-auto justify-center">
+                    Generate Caption
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden mt-8 flex flex-col items-center py-8">
+                <div class="mb-4 text-black">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-800 mb-1">Analyzing image...</h3>
+                <p class="text-sm text-gray-500">Please wait</p>
+            </div>
+
+            <!-- Result Area -->
+            <div id="resultContainer" class="hidden mt-8 transition-opacity duration-300 opacity-0">
+                <div class="p-6 bg-gray-50 border border-gray-200 relative">
+                    <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
+                        Result
+                    </h4>
+                    <p id="captionText" class="text-xl text-gray-900 leading-relaxed">
+                        "..."
+                    </p>
+                </div>
+                <div class="mt-6 text-center">
+                    <button onclick="resetUpload()" class="text-black font-medium hover:underline transition-all text-sm">
+                        Upload another image
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Error State -->
+            <div id="errorContainer" class="hidden mt-8 p-4 bg-white border border-red-500 text-red-600 flex items-start gap-3">
+                <i class="fa-solid fa-circle-exclamation mt-1"></i>
+                <div>
+                    <h4 class="font-medium text-sm mb-1">Error</h4>
+                    <span id="errorText" class="text-sm"></span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
+        const uploadContainer = document.getElementById('uploadContainer');
+        const previewContainer = document.getElementById('previewContainer');
+        const resultContainer = document.getElementById('resultContainer');
+        const loadingState = document.getElementById('loadingState');
+        const errorContainer = document.getElementById('errorContainer');
+        const imageInput = document.getElementById('imageInput');
+        
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop area when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadContainer.classList.add('bg-indigo-50', 'border-brand');
+        }
+
+        function unhighlight(e) {
+            uploadContainer.classList.remove('bg-indigo-50', 'border-brand');
+        }
+
+        // Handle dropped files
+        uploadContainer.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            
+            if (files.length > 0) {
+                imageInput.files = files;
+                previewImage({ target: imageInput });
+            }
+        }
+
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('displayImage').src = e.target.result;
+                    uploadContainer.classList.add('hidden');
+                    previewContainer.classList.remove('hidden');
+                    resultContainer.classList.add('hidden');
+                    errorContainer.classList.add('hidden');
+                    
+                    // Reset animation states
+                    resultContainer.classList.remove('opacity-100');
+                    resultContainer.classList.add('opacity-0');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function resetUpload() {
+            imageInput.value = '';
+            uploadContainer.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+            loadingState.classList.add('hidden');
+        }
+
         function uploadImage() {
-            let fileInput = document.getElementById('imageInput');
-            if (fileInput.files.length === 0) {
-                alert("Please select an image first.");
+            if (imageInput.files.length === 0) {
+                showError("Please select an image first.");
                 return;
             }
 
             let formData = new FormData();
-            formData.append("file", fileInput.files[0]);
+            formData.append("file", imageInput.files[0]);
 
-            document.getElementById('gallery').style.display = 'block';
-            document.getElementById('captionText').innerText = "Loading caption...";
+            // UI updates
+            previewContainer.querySelector('button#uploadBtn').classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+            
+            resultContainer.classList.remove('opacity-100');
+            resultContainer.classList.add('opacity-0');
 
             fetch('/upload', {
                 method: 'POST',
@@ -44,16 +194,36 @@
             })
             .then(response => response.json())
             .then(data => {
+                loadingState.classList.add('hidden');
+                
                 if(data.error) {
-                    document.getElementById('captionText').innerText = "Error: " + data.error;
+                    showError(data.error);
                 } else {
                     document.getElementById('displayImage').src = data.image_url;
-                    document.getElementById('captionText').innerText = data.caption;
+                    document.getElementById('captionText').innerText = '"' + data.caption + '"';
+                    resultContainer.classList.remove('hidden');
+                    
+                    // Trigger animation
+                    setTimeout(() => {
+                        resultContainer.classList.remove('opacity-0');
+                        resultContainer.classList.add('opacity-100');
+                    }, 50);
                 }
+                
+                // Show button again for future retries if needed
+                previewContainer.querySelector('button#uploadBtn').classList.remove('hidden');
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                loadingState.classList.add('hidden');
+                showError("Could not connect to the server. " + error);
+                previewContainer.querySelector('button#uploadBtn').classList.remove('hidden');
+            });
+        }
+        
+        function showError(msg) {
+            document.getElementById('errorText').innerText = msg;
+            errorContainer.classList.remove('hidden');
         }
     </script>
-
 </body>
 </html>
