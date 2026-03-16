@@ -1,21 +1,26 @@
 import os
 import requests
-import base64
 from flask import Flask, render_template, request, jsonify
+from transformers import AutoProcessor, AutoModelForImageTextToText
+from PIL import Image
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Replace with your actual Hugging Face API token
-HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
-headers = {"Authorization": "Bearer YOUR_HUGGING_FACE_TOKEN_HERE"}
+processor = AutoProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = AutoModelForImageTextToText.from_pretrained("Salesforce/blip-image-captioning-base")
 
-def query_huggingface_api(image_path):
-    with open(image_path, "rb") as f:
-        data = f.read()
-    response = requests.post(HF_API_URL, headers=headers, data=data)
-    return response.json()
+def generate_caption(image_path):
+    """Generates a caption for the given image using local Hugging Face model."""
+    try:
+        raw_image = Image.open(image_path).convert('RGB')
+        inputs = processor(images=raw_image, return_tensors="pt")
+        outputs = model.generate(**inputs)
+        caption = processor.decode(outputs[0], skip_special_tokens=True)
+        return [{"generated_text": caption}]
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.route('/')
 def index():
@@ -33,12 +38,14 @@ def upload_image():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
     file.save(filepath)
 
-    # Call Hugging Face API
-    api_response = query_huggingface_api(filepath)
+    # Generate Image Caption directly via model
+    api_response = generate_caption(filepath)
     
     caption = "Caption generation failed."
     if isinstance(api_response, list) and len(api_response) > 0:
         caption = api_response[0].get('generated_text', caption)
+    elif "error" in api_response:
+        caption = f"API Error: {api_response['error']}"
 
     return jsonify({
         'image_url': filepath,
@@ -47,4 +54,3 @@ def upload_image():
 
 if __name__ == '__main__':
     app.run(debug=True)
-    
