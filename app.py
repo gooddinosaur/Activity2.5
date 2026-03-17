@@ -38,7 +38,6 @@ def upload_image():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
     file.save(filepath)
 
-    # Generate Image Caption directly via model
     api_response = generate_caption(filepath)
     
     caption = "Caption generation failed."

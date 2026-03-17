@@ -101,7 +101,6 @@
         const errorContainer = document.getElementById('errorContainer');
         const imageInput = document.getElementById('imageInput');
         
-        // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             uploadContainer.addEventListener(eventName, preventDefaults, false);
             document.body.addEventListener(eventName, preventDefaults, false);
@@ -112,7 +111,6 @@
             e.stopPropagation();
         }
 
-        // Highlight drop area when item is dragged over it
         ['dragenter', 'dragover'].forEach(eventName => {
             uploadContainer.addEventListener(eventName, highlight, false);
         });
@@ -129,7 +127,6 @@
             uploadContainer.classList.remove('bg-indigo-50', 'border-brand');
         }
 
-        // Handle dropped files
         uploadContainer.addEventListener('drop', handleDrop, false);
 
         function handleDrop(e) {
@@ -153,7 +150,6 @@
                     resultContainer.classList.add('hidden');
                     errorContainer.classList.add('hidden');
                     
-                    // Reset animation states
                     resultContainer.classList.remove('opacity-100');
                     resultContainer.classList.add('opacity-0');
                 }
@@ -179,7 +175,6 @@
             let formData = new FormData();
             formData.append("file", imageInput.files[0]);
 
-            // UI updates
             previewContainer.querySelector('button#uploadBtn').classList.add('hidden');
             loadingState.classList.remove('hidden');
             resultContainer.classList.add('hidden');
@@ -203,14 +198,12 @@
                     document.getElementById('captionText').innerText = '"' + data.caption + '"';
                     resultContainer.classList.remove('hidden');
                     
-                    // Trigger animation
                     setTimeout(() => {
                         resultContainer.classList.remove('opacity-0');
                         resultContainer.classList.add('opacity-100');
                     }, 50);
                 }
                 
-                // Show button again for future retries if needed
                 previewContainer.querySelector('button#uploadBtn').classList.remove('hidden');
             })
             .catch(error => {
